@@ -1,0 +1,25 @@
+# Dependencies
+node_modules/
+
+# Reference documents (source materials, not part of the app)
+*.pdf
+*.docx
+
+# Build output
+dist/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# Logs
+*.log
+npm-debug.log*
