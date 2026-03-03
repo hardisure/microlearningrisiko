@@ -1,4 +1,9 @@
+import { db, ref, set, get, onValue } from './firebase.js';
+
 const STORAGE_KEY = 'lms_mkp_data';
+const ADMIN_STORAGE_KEY = 'lms_mkp_admin';
+
+// ========== localStorage (fast sync cache) ==========
 
 function getData() {
     try {
@@ -10,6 +15,82 @@ function getData() {
 function saveData(data) {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
 }
+
+function getAdminData() {
+    try {
+        const raw = localStorage.getItem(ADMIN_STORAGE_KEY);
+        return raw ? JSON.parse(raw) : {};
+    } catch { return {}; }
+}
+
+function saveAdminData(data) {
+    localStorage.setItem(ADMIN_STORAGE_KEY, JSON.stringify(data));
+}
+
+// ========== Firebase sync (cloud persistence) ==========
+
+function syncUserToFirebase(userId) {
+    try {
+        const data = getData();
+        if (data[userId]) {
+            set(ref(db, `users/${userId}`), data[userId]);
+        }
+    } catch (err) {
+        console.warn('Firebase sync error (user):', err.message);
+    }
+}
+
+function syncAdminToFirebase() {
+    try {
+        const data = getAdminData();
+        set(ref(db, 'admin/moduleCustomizations'), data);
+    } catch (err) {
+        console.warn('Firebase sync error (admin):', err.message);
+    }
+}
+
+// Load all data from Firebase on app start
+export async function initFromFirebase() {
+    try {
+        // Load user progress data
+        const usersSnap = await get(ref(db, 'users'));
+        if (usersSnap.exists()) {
+            const firebaseData = usersSnap.val();
+            const localData = getData();
+            // Merge: Firebase data wins, but keep local data that doesn't exist remotely
+            const merged = { ...localData, ...firebaseData };
+            saveData(merged);
+        }
+
+        // Load admin customizations
+        const adminSnap = await get(ref(db, 'admin/moduleCustomizations'));
+        if (adminSnap.exists()) {
+            const firebaseAdmin = adminSnap.val();
+            saveAdminData(firebaseAdmin);
+        }
+
+        return true;
+    } catch (err) {
+        console.warn('Firebase init error:', err.message);
+        return false;
+    }
+}
+
+// Listen for real-time admin changes (so when admin saves, all users see it)
+let adminListener = null;
+export function listenAdminChanges(callback) {
+    if (adminListener) return; // already listening
+    adminListener = onValue(ref(db, 'admin/moduleCustomizations'), (snapshot) => {
+        if (snapshot.exists()) {
+            saveAdminData(snapshot.val());
+            if (callback) callback();
+        }
+    }, (err) => {
+        console.warn('Admin listener error:', err.message);
+    });
+}
+
+// ========== User progress functions ==========
 
 function ensureUser(userId) {
     const data = getData();
@@ -37,6 +118,7 @@ export function startModule(userId, moduleId) {
         data[userId].modules[moduleId].startedAt = new Date().toISOString();
     }
     saveData(data);
+    syncUserToFirebase(userId);
 }
 
 export function saveQuizResult(userId, moduleId, score, answers) {
@@ -47,6 +129,7 @@ export function saveQuizResult(userId, moduleId, score, answers) {
     data[userId].modules[moduleId].quizScore = score;
     data[userId].modules[moduleId].quizAnswers = answers;
     saveData(data);
+    syncUserToFirebase(userId);
 }
 
 export function saveReflection(userId, moduleId, text) {
@@ -56,6 +139,7 @@ export function saveReflection(userId, moduleId, text) {
     }
     data[userId].modules[moduleId].reflection = text;
     saveData(data);
+    syncUserToFirebase(userId);
 }
 
 export function saveActionCommitment(userId, moduleId, choice) {
@@ -65,6 +149,7 @@ export function saveActionCommitment(userId, moduleId, choice) {
     }
     data[userId].modules[moduleId].actionCommitment = choice;
     saveData(data);
+    syncUserToFirebase(userId);
 }
 
 export function completeModule(userId, moduleId) {
@@ -75,7 +160,10 @@ export function completeModule(userId, moduleId) {
         mod.completedAt = new Date().toISOString();
     }
     saveData(data);
+    syncUserToFirebase(userId);
 }
+
+// ========== Stats functions ==========
 
 export function getUserStats(userId) {
     const data = ensureUser(userId);
@@ -147,26 +235,16 @@ export function exportToCSV(usersList) {
 
 export function resetAllData() {
     localStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem(ADMIN_STORAGE_KEY);
 }
 
-// Admin module customizations (video URL, description overrides)
-const ADMIN_STORAGE_KEY = 'lms_mkp_admin';
-
-function getAdminData() {
-    try {
-        const raw = localStorage.getItem(ADMIN_STORAGE_KEY);
-        return raw ? JSON.parse(raw) : {};
-    } catch { return {}; }
-}
-
-function saveAdminData(data) {
-    localStorage.setItem(ADMIN_STORAGE_KEY, JSON.stringify(data));
-}
+// ========== Admin module customizations ==========
 
 export function saveModuleCustomization(moduleId, updates) {
     const data = getAdminData();
     data[moduleId] = { ...(data[moduleId] || {}), ...updates, updatedAt: new Date().toISOString() };
     saveAdminData(data);
+    syncAdminToFirebase();
 }
 
 export function getModuleCustomization(moduleId) {

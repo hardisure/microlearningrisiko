@@ -1,5 +1,7 @@
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext.jsx';
+import { useState, useEffect } from 'react';
+import { initFromFirebase, listenAdminChanges } from './data/store.js';
 import Navbar from './components/Navbar.jsx';
 import Login from './pages/Login.jsx';
 import Dashboard from './pages/Dashboard.jsx';
@@ -30,6 +32,27 @@ function AppRoutes() {
 }
 
 export default function App() {
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        initFromFirebase().then(() => {
+            listenAdminChanges();
+            setLoading(false);
+        }).catch(() => {
+            setLoading(false); // fallback to localStorage
+        });
+    }, []);
+
+    if (loading) {
+        return (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100vh', background: '#0F172A', color: '#fff' }}>
+                <div style={{ width: '40px', height: '40px', border: '4px solid rgba(255,255,255,0.2)', borderTop: '4px solid #3B82F6', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
+                <p style={{ marginTop: '16px', fontSize: '14px', color: '#94A3B8' }}>Memuat data dari cloud...</p>
+                <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+            </div>
+        );
+    }
+
     return (
         <HashRouter>
             <AuthProvider>
