@@ -35,19 +35,31 @@ export default function App() {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        initFromFirebase().then(() => {
-            listenAdminChanges();
+        // Race: Firebase init vs 3-second timeout (whichever finishes first)
+        const timeout = setTimeout(() => {
             setLoading(false);
-        }).catch(() => {
-            setLoading(false); // fallback to localStorage
-        });
+        }, 3000);
+
+        initFromFirebase()
+            .then(() => {
+                try { listenAdminChanges(); } catch (e) { console.warn('Admin listener setup failed:', e); }
+            })
+            .catch((err) => {
+                console.warn('Firebase init failed, using localStorage:', err);
+            })
+            .finally(() => {
+                clearTimeout(timeout);
+                setLoading(false);
+            });
+
+        return () => clearTimeout(timeout);
     }, []);
 
     if (loading) {
         return (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100vh', background: '#0F172A', color: '#fff' }}>
                 <div style={{ width: '40px', height: '40px', border: '4px solid rgba(255,255,255,0.2)', borderTop: '4px solid #3B82F6', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
-                <p style={{ marginTop: '16px', fontSize: '14px', color: '#94A3B8' }}>Memuat data dari cloud...</p>
+                <p style={{ marginTop: '16px', fontSize: '14px', color: '#94A3B8' }}>Memuat data...</p>
                 <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
             </div>
         );

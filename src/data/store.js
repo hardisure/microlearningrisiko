@@ -168,11 +168,11 @@ export function completeModule(userId, moduleId) {
 export function getUserStats(userId) {
     const data = ensureUser(userId);
     const modules = data[userId]?.modules || {};
-    const entries = Object.values(modules);
+    const entries = Object.values(modules).filter(m => m != null);
     const total = 20;
     const completed = entries.filter(m => m.status === 'completed' || m.status === 'failed').length;
     const completionRate = total > 0 ? (completed / total) * 100 : 0;
-    const scores = entries.filter(m => m.quizScore !== null).map(m => m.quizScore);
+    const scores = entries.filter(m => m.quizScore !== null && m.quizScore !== undefined).map(m => m.quizScore);
     const avgScore = scores.length > 0 ? scores.reduce((a, b) => a + b, 0) / scores.length : 0;
     const riskLiteracyScore = Math.round((avgScore * 0.6) + (completionRate * 0.4));
     return { completed, total, completionRate: Math.round(completionRate), avgScore: Math.round(avgScore), riskLiteracyScore, inProgress: entries.filter(m => m.status === 'in-progress').length, passed: entries.filter(m => m.status === 'completed').length, failed: entries.filter(m => m.status === 'failed').length };
