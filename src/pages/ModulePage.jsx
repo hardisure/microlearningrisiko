@@ -5,6 +5,23 @@ import { getModuleById } from '../data/modules.js';
 import { getModuleProgress, startModule, saveQuizResult, saveReflection, saveActionCommitment, completeModule } from '../data/store.js';
 import QuizEngine from '../components/QuizEngine.jsx';
 
+// Convert any YouTube URL to embed format
+function toEmbedUrl(url) {
+    if (!url) return '';
+    let videoId = '';
+    // youtu.be/VIDEO_ID
+    const shortMatch = url.match(/youtu\.be\/([a-zA-Z0-9_-]+)/);
+    if (shortMatch) videoId = shortMatch[1];
+    // youtube.com/watch?v=VIDEO_ID
+    const watchMatch = url.match(/[?&]v=([a-zA-Z0-9_-]+)/);
+    if (watchMatch) videoId = watchMatch[1];
+    // youtube.com/embed/VIDEO_ID (already correct)
+    const embedMatch = url.match(/youtube\.com\/embed\/([a-zA-Z0-9_-]+)/);
+    if (embedMatch) return `https://www.youtube.com/embed/${embedMatch[1]}`;
+    if (videoId) return `https://www.youtube.com/embed/${videoId}`;
+    return url; // return as-is if not recognized
+}
+
 const ACTION_OPTIONS = [
     'Saya memahami dan siap menerapkan prinsip ini',
     'Saya perlu diskusi lebih lanjut dengan atasan',
@@ -117,7 +134,7 @@ export default function ModulePage() {
                 </div>
                 <div className="video-container">
                     {mod.videoUrl ? (
-                        <iframe src={mod.videoUrl} frameBorder="0" allowFullScreen title={mod.title} />
+                        <iframe src={toEmbedUrl(mod.videoUrl)} frameBorder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen title={mod.title} />
                     ) : (
                         <div className="video-placeholder">
                             <div className="video-placeholder-icon">▶️</div>
