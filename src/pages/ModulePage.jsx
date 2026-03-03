@@ -5,20 +5,24 @@ import { getModuleById } from '../data/modules.js';
 import { getModuleProgress, startModule, saveQuizResult, saveReflection, saveActionCommitment, completeModule } from '../data/store.js';
 import QuizEngine from '../components/QuizEngine.jsx';
 
-// Convert any YouTube URL to embed format
+// Convert YouTube or Google Drive URL to embed format
 function toEmbedUrl(url) {
     if (!url) return '';
-    let videoId = '';
-    // youtu.be/VIDEO_ID
+    // Google Drive: drive.google.com/file/d/FILE_ID/view
+    const driveFileMatch = url.match(/drive\.google\.com\/file\/d\/([a-zA-Z0-9_-]+)/);
+    if (driveFileMatch) return `https://drive.google.com/file/d/${driveFileMatch[1]}/preview`;
+    // Google Drive: drive.google.com/open?id=FILE_ID
+    const driveOpenMatch = url.match(/drive\.google\.com\/open\?id=([a-zA-Z0-9_-]+)/);
+    if (driveOpenMatch) return `https://drive.google.com/file/d/${driveOpenMatch[1]}/preview`;
+    // YouTube: youtu.be/VIDEO_ID
     const shortMatch = url.match(/youtu\.be\/([a-zA-Z0-9_-]+)/);
-    if (shortMatch) videoId = shortMatch[1];
-    // youtube.com/watch?v=VIDEO_ID
+    if (shortMatch) return `https://www.youtube.com/embed/${shortMatch[1]}`;
+    // YouTube: youtube.com/watch?v=VIDEO_ID
     const watchMatch = url.match(/[?&]v=([a-zA-Z0-9_-]+)/);
-    if (watchMatch) videoId = watchMatch[1];
-    // youtube.com/embed/VIDEO_ID (already correct)
+    if (watchMatch) return `https://www.youtube.com/embed/${watchMatch[1]}`;
+    // YouTube: youtube.com/embed/VIDEO_ID (already correct)
     const embedMatch = url.match(/youtube\.com\/embed\/([a-zA-Z0-9_-]+)/);
     if (embedMatch) return `https://www.youtube.com/embed/${embedMatch[1]}`;
-    if (videoId) return `https://www.youtube.com/embed/${videoId}`;
     return url; // return as-is if not recognized
 }
 

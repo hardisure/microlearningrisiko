@@ -77,8 +77,8 @@ function ModulesTab({ selectedModule, setSelectedModule }) {
                     </div>
                     <div className="form-group">
                         <label className="form-label">URL Video</label>
-                        <input className="form-input" value={videoUrl} onChange={e => { setVideoUrl(e.target.value); setSaved(false); }} placeholder="Masukkan URL video YouTube embed (contoh: https://www.youtube.com/embed/xxxxx)" />
-                        <p style={{ fontSize: '11px', color: '#9CA3AF', marginTop: '4px' }}>💡 Gunakan format embed YouTube: https://www.youtube.com/embed/VIDEO_ID</p>
+                        <input className="form-input" value={videoUrl} onChange={e => { setVideoUrl(e.target.value); setSaved(false); }} placeholder="Paste URL YouTube atau Google Drive" />
+                        <p style={{ fontSize: '11px', color: '#9CA3AF', marginTop: '4px' }}>💡 Mendukung: YouTube (youtu.be, youtube.com/watch) dan Google Drive (drive.google.com/file/d/...)</p>
                     </div>
                     <div className="form-group">
                         <label className="form-label">Konten Artikel (HTML)</label>
