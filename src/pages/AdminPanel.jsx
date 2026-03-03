@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { MODULES } from '../data/modules.js';
+import { MODULES, getModuleById } from '../data/modules.js';
 import { USERS, UNITS, getUnitById } from '../data/users.js';
-import { getUserStats, getUnitStats, getAllReflections, exportToCSV } from '../data/store.js';
+import { getUserStats, getUnitStats, getAllReflections, exportToCSV, saveModuleCustomization, getModuleCustomization } from '../data/store.js';
 
 const TABS = ['Modul', 'Refleksi User', 'Ranking Unit', 'Export'];
 
@@ -31,28 +31,58 @@ export default function AdminPanel() {
 }
 
 function ModulesTab({ selectedModule, setSelectedModule }) {
+    const [videoUrl, setVideoUrl] = useState('');
+    const [description, setDescription] = useState('');
+    const [saved, setSaved] = useState(false);
+    const [editingId, setEditingId] = useState(null);
+
+    function openModule(id) {
+        const mod = getModuleById(id);
+        const custom = getModuleCustomization(id);
+        setVideoUrl(custom?.videoUrl || mod.videoUrl || '');
+        setDescription(custom?.description || mod.description || '');
+        setEditingId(id);
+        setSaved(false);
+        setSelectedModule(id);
+    }
+
+    function handleSave() {
+        if (!editingId) return;
+        saveModuleCustomization(editingId, { videoUrl: videoUrl.trim(), description: description.trim() });
+        setSaved(true);
+        setTimeout(() => setSaved(false), 3000);
+    }
+
+    function handleBack() {
+        setSelectedModule(null);
+        setEditingId(null);
+        setSaved(false);
+    }
+
     if (selectedModule) {
         const mod = MODULES.find(m => m.id === selectedModule);
+        if (!mod) return <p>Modul tidak ditemukan.</p>;
         return (
             <div>
-                <button className="btn btn-secondary btn-sm" onClick={() => setSelectedModule(null)} style={{ marginBottom: '16px' }}>← Kembali</button>
+                <button className="btn btn-secondary btn-sm" onClick={handleBack} style={{ marginBottom: '16px' }}>← Kembali</button>
                 <div className="card">
                     <h3 style={{ fontSize: '18px', fontWeight: 700, color: '#1B2A4A', marginBottom: '16px' }}>Topik {mod.id}: {mod.title}</h3>
                     <div className="form-group">
                         <label className="form-label">Judul</label>
-                        <input className="form-input" defaultValue={mod.title} readOnly />
+                        <input className="form-input" defaultValue={mod.title} readOnly style={{ background: '#F3F4F6' }} />
                     </div>
                     <div className="form-group">
                         <label className="form-label">Deskripsi</label>
-                        <textarea className="form-textarea" defaultValue={mod.description} readOnly />
+                        <textarea className="form-textarea" value={description} onChange={e => { setDescription(e.target.value); setSaved(false); }} rows={3} />
                     </div>
                     <div className="form-group">
                         <label className="form-label">URL Video</label>
-                        <input className="form-input" defaultValue={mod.videoUrl || ''} placeholder="Masukkan URL video YouTube/embed" />
+                        <input className="form-input" value={videoUrl} onChange={e => { setVideoUrl(e.target.value); setSaved(false); }} placeholder="Masukkan URL video YouTube embed (contoh: https://www.youtube.com/embed/xxxxx)" />
+                        <p style={{ fontSize: '11px', color: '#9CA3AF', marginTop: '4px' }}>💡 Gunakan format embed YouTube: https://www.youtube.com/embed/VIDEO_ID</p>
                     </div>
                     <div className="form-group">
                         <label className="form-label">Konten Artikel (HTML)</label>
-                        <textarea className="form-textarea" defaultValue={mod.article} style={{ minHeight: '200px', fontFamily: 'monospace', fontSize: '12px' }} readOnly />
+                        <textarea className="form-textarea" defaultValue={mod.article} style={{ minHeight: '200px', fontFamily: 'monospace', fontSize: '12px', background: '#F3F4F6' }} readOnly />
                     </div>
                     <div className="form-group">
                         <label className="form-label">Quiz Questions ({mod.quiz.length})</label>
@@ -65,7 +95,17 @@ function ModulesTab({ selectedModule, setSelectedModule }) {
                             </div>
                         ))}
                     </div>
-                    <p style={{ fontSize: '12px', color: '#9CA3AF' }}>Catatan: Untuk mengubah konten, edit file sumber data secara langsung. Fitur editing penuh akan tersedia di versi berikutnya.</p>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginTop: '20px', paddingTop: '16px', borderTop: '1px solid #E5E7EB' }}>
+                        <button className="btn btn-primary" onClick={handleSave} style={{ minWidth: '160px' }}>
+                            💾 Simpan Perubahan
+                        </button>
+                        {saved && (
+                            <span style={{ color: '#059669', fontWeight: 600, fontSize: '14px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                ✅ Berhasil disimpan!
+                            </span>
+                        )}
+                    </div>
                 </div>
             </div>
         );
@@ -75,18 +115,23 @@ function ModulesTab({ selectedModule, setSelectedModule }) {
         <div className="table-wrapper">
             <table className="data-table">
                 <thead>
-                    <tr><th>#</th><th>Judul Topik</th><th>Modul</th><th>Quiz</th><th>Aksi</th></tr>
+                    <tr><th>#</th><th>Judul Topik</th><th>Modul</th><th>Video</th><th>Quiz</th><th>Aksi</th></tr>
                 </thead>
                 <tbody>
-                    {MODULES.map(m => (
-                        <tr key={m.id}>
-                            <td style={{ fontWeight: 700 }}>{m.id}</td>
-                            <td>{m.title}</td>
-                            <td style={{ fontSize: '12px', color: '#6B7280' }}>{m.module}</td>
-                            <td>{m.quiz.length} soal</td>
-                            <td><button className="btn btn-sm btn-secondary" onClick={() => setSelectedModule(m.id)}>Lihat Detail</button></td>
-                        </tr>
-                    ))}
+                    {MODULES.map(m => {
+                        const custom = getModuleCustomization(m.id);
+                        const hasVideo = !!(custom?.videoUrl || m.videoUrl);
+                        return (
+                            <tr key={m.id}>
+                                <td style={{ fontWeight: 700 }}>{m.id}</td>
+                                <td>{m.title}</td>
+                                <td style={{ fontSize: '12px', color: '#6B7280' }}>{m.module}</td>
+                                <td>{hasVideo ? <span style={{ color: '#059669' }}>✅</span> : <span style={{ color: '#9CA3AF' }}>—</span>}</td>
+                                <td>{m.quiz.length} soal</td>
+                                <td><button className="btn btn-sm btn-secondary" onClick={() => openModule(m.id)}>Edit</button></td>
+                            </tr>
+                        );
+                    })}
                 </tbody>
             </table>
         </div>

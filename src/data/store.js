@@ -148,3 +148,32 @@ export function exportToCSV(usersList) {
 export function resetAllData() {
     localStorage.removeItem(STORAGE_KEY);
 }
+
+// Admin module customizations (video URL, description overrides)
+const ADMIN_STORAGE_KEY = 'lms_mkp_admin';
+
+function getAdminData() {
+    try {
+        const raw = localStorage.getItem(ADMIN_STORAGE_KEY);
+        return raw ? JSON.parse(raw) : {};
+    } catch { return {}; }
+}
+
+function saveAdminData(data) {
+    localStorage.setItem(ADMIN_STORAGE_KEY, JSON.stringify(data));
+}
+
+export function saveModuleCustomization(moduleId, updates) {
+    const data = getAdminData();
+    data[moduleId] = { ...(data[moduleId] || {}), ...updates, updatedAt: new Date().toISOString() };
+    saveAdminData(data);
+}
+
+export function getModuleCustomization(moduleId) {
+    const data = getAdminData();
+    return data[moduleId] || null;
+}
+
+export function getAllModuleCustomizations() {
+    return getAdminData();
+}
