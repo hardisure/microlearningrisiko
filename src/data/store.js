@@ -194,8 +194,9 @@ export function getAllReflections() {
     const data = getData();
     const results = [];
     Object.entries(data).forEach(([userId, userData]) => {
-        Object.entries(userData.modules || {}).forEach(([moduleId, mod]) => {
-            if (mod.reflection) {
+        if (!userData || !userData.modules) return;
+        Object.entries(userData.modules).forEach(([moduleId, mod]) => {
+            if (mod && mod.reflection) {
                 results.push({ userId, moduleId: parseInt(moduleId), reflection: mod.reflection, date: mod.completedAt || mod.startedAt });
             }
         });
@@ -208,7 +209,7 @@ export function getMonthlyData(userId) {
     const modules = data[userId]?.modules || {};
     const months = {};
     Object.values(modules).forEach(m => {
-        if (m.completedAt) {
+        if (m && m.completedAt) {
             const d = new Date(m.completedAt);
             const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
             months[key] = (months[key] || 0) + 1;
